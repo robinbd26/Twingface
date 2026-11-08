@@ -1,0 +1,4 @@
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+export default function GroupPostForm({ handle }: { handle: string }) { const [content, setContent] = useState(''); const [error, setError] = useState(''); const router = useRouter(); return <form className='fb-card surface group-post-form' onSubmit={async (e) => { e.preventDefault(); const response = await fetch(`/api/groups/${handle}/posts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }); if (!response.ok) return setError('Unable to publish your post.'); setContent(''); router.refresh(); }}><textarea aria-label='Write a group post' value={content} onChange={(e) => setContent(e.target.value)} placeholder='What would you like to share?' /><button className='fb-btn fb-btn-primary' disabled={!content.trim()}>Post</button>{error ? <p role='alert'>{error}</p> : null}</form>; }

@@ -1,0 +1,45 @@
+{
+  "name": "twingface",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Twingface - A modern social media platform",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev --turbo --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed:super-admin": "node --experimental-strip-types scripts/seed-super-admin.ts",
+    "db:verify:super-admin": "node --experimental-strip-types scripts/verify-super-admin.ts",
+    "db:seed:mediaworld-taxonomy": "node --experimental-strip-types scripts/seed-mediaworld-taxonomy.ts",
+    "db:seed:mediaworld-users": "node --experimental-strip-types scripts/seed-mediaworld-users.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.12.0",
+    "argon2": "^0.41.1",
+    "cloudinary": "^2.11.0",
+    "next": "15.3.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "prisma": "^6.12.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}

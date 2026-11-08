@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.next-dev/
+.next-verify/
+out/
+build/
+coverage/
+*.log
+npm-debug.log*
+.env*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+.worktrees/

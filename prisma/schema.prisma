@@ -1,0 +1,1006 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum MediaAccountType {
+  PROFESSIONAL
+  BUSINESS
+  RENTAL
+}
+
+enum ShowcaseKind {
+  PHOTO
+  VIDEO
+}
+
+enum GameGenre {
+  ACTION
+  HORROR
+  RACING
+  PUZZLE_STRATEGY
+  SPORTS_FIGHTING
+  ARCADE
+  RPG
+}
+
+enum MediaComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum MediaComplaintPersonType {
+  ACTOR
+  ACTRESS
+  CAMERAMAN
+  DIRECTOR
+  MODEL
+  CREW
+  OTHER
+}
+
+enum MediaComplaintAttachmentKind {
+  IMAGE
+  VIDEO
+}
+
+model User {
+  id                         String                     @id @default(cuid())
+  name                       String                     @db.VarChar(100)
+  username                   String                     @unique @db.VarChar(30)
+  email                      String?                    @unique @db.VarChar(255)
+  phone                      String?                    @unique @db.VarChar(20)
+  gender                     String?                    @db.VarChar(10)
+  dateOfBirth                DateTime?                  @db.Date
+  division                   String?                    @db.VarChar(30)
+  district                   String?                    @db.VarChar(30)
+  presentAddress             String?                    @db.VarChar(255)
+  permanentAddress           String?                    @db.VarChar(255)
+  passwordHash               String                     @db.VarChar(255)
+  role                       UserRole                   @default(USER)
+  profileImage               String?                    @db.VarChar(500)
+  coverImage                 String?                    @db.VarChar(500)
+  bio                        String?                    @db.VarChar(500)
+  profession                 String?                    @db.VarChar(100)
+  education                  String?                    @db.VarChar(160)
+  currentCity                String?                    @db.VarChar(120)
+  hometown                   String?                    @db.VarChar(120)
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  sessions                   Session[]
+  posts                      Post[]
+  comments                   Comment[]
+  pages                      Page[]
+  pagePosts                  PagePost[]
+  friendRequestsSent         Friendship[]               @relation("FriendshipRequester")
+  friendRequestsReceived     Friendship[]               @relation("FriendshipRecipient")
+  conversationParticipantOne DirectConversation[]       @relation("ConversationParticipantOne")
+  conversationParticipantTwo DirectConversation[]       @relation("ConversationParticipantTwo")
+  directMessagesSent         DirectMessage[]            @relation("DirectMessageSender")
+  presence                   UserPresence?
+  notificationsReceived      Notification[]             @relation("NotificationRecipient")
+  notificationsActed         Notification[]             @relation("NotificationActor")
+  groupsCreated              Group[]                    @relation("GroupCreator")
+  groupMemberships           GroupMembership[]
+  groupPosts                 GroupPost[]
+  listings                   Listing[]
+  marketplaceListings        MarketplaceListing[]
+  mediaProfile               MediaProfile?
+  gamesCreated               Game[]
+  accountType                MediaAccountType?
+  professionalIdentities     UserProfessionalIdentity[]
+  organization               Organization?
+  rentalProvider             RentalProvider?
+  inquiries                  Inquiry[]
+  listingReports             RentalListingReport[]
+  bookings                   Booking[]                  @relation("BookingRenter")
+  bookingHistory             BookingStatusHistory[]     @relation("BookingHistoryActor")
+  mediaComplaints            MediaComplaint[]
+  showcaseItems              TalentShowcaseItem[]
+  talentSettings             TalentProfileSettings?
+  talentFollowing            TalentFollow[]             @relation("TalentFollower")
+  talentFollowers            TalentFollow[]             @relation("TalentFollowing")
+
+  @@index([username])
+  @@index([email])
+  @@index([phone])
+  @@index([division])
+  @@index([district])
+  @@map("users")
+}
+
+model MediaComplaint {
+  id          String                     @id @default(cuid())
+  userId      String
+  user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     String                     @db.VarChar(120)
+  details     String                     @db.VarChar(2000)
+  contact     String?                    @db.VarChar(120)
+  status      MediaComplaintStatus       @default(OPEN)
+  personType  MediaComplaintPersonType   @default(OTHER)
+  personName  String?                    @db.VarChar(120)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  attachments MediaComplaintAttachment[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("media_complaints")
+}
+
+model MediaComplaintAttachment {
+  id          String                       @id @default(cuid())
+  complaintId String
+  complaint   MediaComplaint               @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  url         String                       @db.VarChar(500)
+  publicId    String                       @db.VarChar(255)
+  kind        MediaComplaintAttachmentKind @default(IMAGE)
+  mimeType    String                       @db.VarChar(60)
+  sizeBytes   Int
+  position    Int                          @default(0)
+
+  @@unique([complaintId, position])
+  @@index([complaintId])
+  @@map("media_complaint_attachments")
+}
+
+model Game {
+  id           String    @id @default(cuid())
+  title        String    @db.VarChar(120)
+  slug         String    @unique @db.VarChar(140)
+  description  String    @db.VarChar(1000)
+  genre        GameGenre
+  thumbnailUrl String    @db.VarChar(500)
+  playUrl      String    @db.VarChar(500)
+  isFeatured   Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  rating       Float     @default(0)
+  playCount    Int       @default(0)
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([isActive, isFeatured, createdAt])
+  @@index([genre, isActive, createdAt])
+  @@map("games")
+}
+
+model Post {
+  id              String    @id @default(cuid())
+  content         String    @db.VarChar(500)
+  imageUrl        String?   @db.VarChar(500)
+  imagePublicId   String?   @db.VarChar(255)
+  feelingActivity String?   @db.VarChar(64)
+  youtubeUrl      String?   @db.VarChar(255)
+  authorId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  author          User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments        Comment[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([authorId, createdAt])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.VarChar(500)
+  postId    String
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@map("comments")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @db.VarChar(64)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Fixed-window attempt counters backing login and signup throttling.
+model RateLimitCounter {
+  key       String   @id @db.VarChar(320)
+  count     Int      @default(0)
+  resetAt   DateTime @db.Timestamptz(3) @map("reset_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([resetAt])
+  @@map("rate_limit_counters")
+}
+
+model Page {
+  id             String     @id @default(cuid())
+  name           String     @db.VarChar(100)
+  handle         String     @unique @db.VarChar(30)
+  category       String     @db.VarChar(40)
+  bio            String?    @db.VarChar(500)
+  avatarUrl      String?    @db.VarChar(500)
+  avatarPublicId String?    @db.VarChar(255)
+  coverUrl       String?    @db.VarChar(500)
+  coverPublicId  String?    @db.VarChar(255)
+  ownerId        String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  owner          User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  posts          PagePost[]
+
+  @@index([ownerId])
+  @@index([handle])
+  @@map("pages")
+}
+
+model PagePost {
+  id            String   @id @default(cuid())
+  content       String   @db.VarChar(500)
+  imageUrl      String?  @db.VarChar(500)
+  imagePublicId String?  @db.VarChar(255)
+  pageId        String
+  authorId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  page          Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+  @@index([authorId])
+  @@map("page_posts")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model Friendship {
+  id          String           @id @default(cuid())
+  pairKey     String           @unique @db.VarChar(64)
+  requesterId String
+  recipientId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient   User             @relation("FriendshipRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, status])
+  @@index([recipientId, status])
+  @@map("friendships")
+}
+
+model DirectConversation {
+  id                          String          @id @default(cuid())
+  pairKey                     String          @unique @db.VarChar(64)
+  participantOneId            String
+  participantTwoId            String
+  marketplaceMessagingEnabled Boolean         @default(false)
+  mediaWorldMessagingEnabled  Boolean         @default(false)
+  lastMessageAt               DateTime        @default(now())
+  createdAt                   DateTime        @default(now())
+  updatedAt                   DateTime        @updatedAt
+  participantOne              User            @relation("ConversationParticipantOne", fields: [participantOneId], references: [id], onDelete: Cascade)
+  participantTwo              User            @relation("ConversationParticipantTwo", fields: [participantTwoId], references: [id], onDelete: Cascade)
+  messages                    DirectMessage[]
+
+  @@index([participantOneId, lastMessageAt])
+  @@index([participantTwoId, lastMessageAt])
+  @@map("direct_conversations")
+}
+
+model DirectMessage {
+  id                   String              @id @default(cuid())
+  content              String              @db.VarChar(1000)
+  attachments          String[]
+  isRead               Boolean             @default(false)
+  conversationId       String
+  senderId             String
+  marketplaceListingId String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  conversation         DirectConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender               User                @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  marketplaceListing   MarketplaceListing? @relation("MarketplaceListingMessages", fields: [marketplaceListingId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("direct_messages")
+}
+
+model UserPresence {
+  userId       String   @id
+  isOnline     Boolean  @default(false)
+  lastActiveAt DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline])
+  @@map("user_presence")
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPT
+  MESSAGE
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  recipientId String
+  actorId     String
+  entityId    String?          @db.VarChar(40)
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       User             @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead, createdAt])
+  @@index([recipientId, createdAt])
+  @@map("notifications")
+}
+
+model Ad {
+  id             String   @id @default(cuid())
+  title          String   @db.VarChar(120)
+  description    String?  @db.VarChar(280)
+  imageUrl       String   @db.VarChar(500)
+  imagePublicId  String?  @db.VarChar(255)
+  destinationUrl String   @db.VarChar(500)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isActive, createdAt])
+  @@map("ads")
+}
+
+enum GroupPrivacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum GroupPostingPolicy {
+  MEMBERS
+  ADMINS_ONLY
+}
+
+enum GroupRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum GroupMembershipStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Group {
+  id            String             @id @default(cuid())
+  name          String             @db.VarChar(80)
+  handle        String             @unique @db.VarChar(60)
+  description   String?            @db.VarChar(500)
+  privacy       GroupPrivacy
+  postingPolicy GroupPostingPolicy
+  coverImage    String?            @db.VarChar(500)
+  creatorId     String
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  creator       User               @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  memberships   GroupMembership[]
+  posts         GroupPost[]
+
+  @@index([creatorId])
+  @@index([privacy, createdAt])
+  @@map("groups")
+}
+
+model GroupMembership {
+  id        String                @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupRole             @default(MEMBER)
+  status    GroupMembershipStatus @default(PENDING)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  group     Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId, status, createdAt])
+  @@index([userId, status, createdAt])
+  @@map("group_memberships")
+}
+
+model GroupPost {
+  id              String   @id @default(cuid())
+  content         String   @db.VarChar(500)
+  imageUrl        String?  @db.VarChar(500)
+  imagePublicId   String?  @db.VarChar(255)
+  feelingActivity String?  @db.VarChar(64)
+  youtubeUrl      String?  @db.VarChar(255)
+  groupId         String
+  authorId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  group           Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
+  @@map("group_posts")
+}
+
+enum ListingCondition {
+  NEW
+  USED_LIKE_NEW
+  USED_GOOD
+  USED_FAIR
+}
+
+enum ListingStatus {
+  AVAILABLE
+  SOLD
+}
+
+enum MarketplaceCategory {
+  ELECTRONICS
+  VEHICLES
+  PROPERTY
+  FURNITURE
+  FASHION
+  HOBBIES
+  OTHER
+  DRONE
+  SPOT
+  STORY_WRITER
+  DIRECTOR
+  ARTIST
+  PRODUCER
+  DOP
+  CAMERA_HOUSE
+  SHOOTING_HOUSE
+  MAKEUP_MAN
+  PRODUCTION
+  SHOOTING_BUS_CAR
+  LIGHT_HOUSE
+}
+
+enum MarketplaceCondition {
+  NEW
+  USED
+}
+
+enum MarketplaceStatus {
+  AVAILABLE
+  SOLD_OUT
+}
+
+enum MediaProfileStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model MediaProfile {
+  id         String              @id @default(cuid())
+  userId     String              @unique
+  fullName   String              @db.VarChar(100)
+  profession MarketplaceCategory
+  bio        String              @db.VarChar(500)
+  photoUrl   String?             @db.VarChar(500)
+  division   String              @db.VarChar(30)
+  district   String              @db.VarChar(30)
+  phone      String?             @db.VarChar(20)
+  email      String?             @db.VarChar(255)
+  portfolio  String?             @db.VarChar(2000)
+  experience String?             @db.VarChar(200)
+  status     MediaProfileStatus  @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([profession, status])
+  @@index([division, district, status])
+  @@map("media_profiles")
+}
+
+model MarketplaceListing {
+  id          String               @id @default(cuid())
+  sellerId    String
+  title       String               @db.VarChar(120)
+  description String               @db.VarChar(2000)
+  pricePaisa  Int
+  category    MarketplaceCategory
+  condition   MarketplaceCondition
+  location    String               @db.VarChar(120)
+  status      MarketplaceStatus    @default(AVAILABLE)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  seller      User                 @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  images      MarketplaceImage[]
+  messages    DirectMessage[]      @relation("MarketplaceListingMessages")
+
+  @@index([sellerId, updatedAt])
+  @@index([status, createdAt])
+  @@index([category, status, createdAt])
+  @@map("marketplace_listings")
+}
+
+model MarketplaceImage {
+  id        String             @id @default(cuid())
+  listingId String
+  url       String             @db.VarChar(500)
+  publicId  String             @db.VarChar(255)
+  position  Int
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, position])
+  @@map("marketplace_images")
+}
+
+model Listing {
+  id            String           @id @default(cuid())
+  title         String           @db.VarChar(120)
+  price         Int
+  description   String?          @db.VarChar(1000)
+  category      String           @db.VarChar(40)
+  condition     ListingCondition
+  status        ListingStatus    @default(AVAILABLE)
+  location      String?          @db.VarChar(120)
+  imageUrl      String?          @db.VarChar(500)
+  imagePublicId String?          @db.VarChar(255)
+  sellerId      String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  seller        User             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([sellerId])
+  @@index([category, status, createdAt])
+  @@map("listings")
+}
+
+enum PriceUnit {
+  PER_HOUR
+  PER_DAY
+  PER_WEEK
+  PER_MONTH
+  CUSTOM
+}
+
+enum RentalAvailability {
+  AVAILABLE
+  UNAVAILABLE
+  TEMPORARILY_UNAVAILABLE
+}
+
+enum InquiryStatus {
+  PENDING
+  REPLIED
+  ARCHIVED
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model Industry {
+  id         String                     @id @default(cuid())
+  code       String                     @unique @db.VarChar(30)
+  nameEn     String                     @db.VarChar(80)
+  nameBn     String                     @db.VarChar(80)
+  sortOrder  Int                        @default(0)
+  isActive   Boolean                    @default(true)
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+  categories MainCategory[]
+  identities UserProfessionalIdentity[]
+
+  @@map("industries")
+}
+
+model MainCategory {
+  id           String                     @id @default(cuid())
+  industryId   String
+  code         String                     @db.VarChar(40)
+  nameEn       String                     @db.VarChar(100)
+  nameBn       String                     @db.VarChar(100)
+  sortOrder    Int                        @default(0)
+  isActive     Boolean                    @default(true)
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  industry     Industry                   @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  designations DesignationCategory[]
+  identities   UserProfessionalIdentity[]
+
+  @@unique([industryId, code])
+  @@index([industryId, sortOrder])
+  @@map("main_categories")
+}
+
+model Designation {
+  id         String                     @id @default(cuid())
+  code       String                     @unique @db.VarChar(60)
+  nameEn     String                     @db.VarChar(120)
+  nameBn     String                     @db.VarChar(120)
+  sortOrder  Int                        @default(0)
+  isActive   Boolean                    @default(true)
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+  categories DesignationCategory[]
+  identities UserProfessionalIdentity[]
+
+  @@map("designations")
+}
+
+model DesignationCategory {
+  designationId String
+  categoryId    String
+  designation   Designation  @relation(fields: [designationId], references: [id], onDelete: Cascade)
+  category      MainCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([designationId, categoryId])
+  @@index([categoryId])
+  @@map("designation_categories")
+}
+
+model UserProfessionalIdentity {
+  id             String       @id @default(cuid())
+  userId         String
+  industryId     String
+  mainCategoryId String
+  designationId  String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  industry       Industry     @relation(fields: [industryId], references: [id], onDelete: Restrict)
+  mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id], onDelete: Restrict)
+  designation    Designation  @relation(fields: [designationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, industryId, mainCategoryId, designationId])
+  @@index([industryId, mainCategoryId])
+  @@index([designationId])
+  @@map("user_professional_identities")
+}
+
+model OrganizationType {
+  id            String         @id @default(cuid())
+  code          String         @unique @db.VarChar(60)
+  nameEn        String         @db.VarChar(120)
+  nameBn        String         @db.VarChar(120)
+  sortOrder     Int            @default(0)
+  isActive      Boolean        @default(true)
+  isCustom      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  organizations Organization[]
+
+  @@map("organization_types")
+}
+
+model Organization {
+  id           String           @id @default(cuid())
+  userId       String           @unique
+  orgTypeId    String
+  orgName      String           @db.VarChar(160)
+  contactName  String           @db.VarChar(100)
+  phone        String?          @db.VarChar(20)
+  email        String?          @db.VarChar(255)
+  address      String?          @db.VarChar(300)
+  city         String?          @db.VarChar(120)
+  description  String?          @db.VarChar(2000)
+  website      String?          @db.VarChar(500)
+  logoUrl      String?          @db.VarChar(500)
+  logoPublicId String?          @db.VarChar(255)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgType      OrganizationType @relation(fields: [orgTypeId], references: [id])
+
+  @@index([orgTypeId])
+  @@map("organizations")
+}
+
+model RentalProvider {
+  id                 String                    @id @default(cuid())
+  userId             String                    @unique
+  ownerName          String                    @db.VarChar(100)
+  businessName       String?                   @db.VarChar(160)
+  phone              String                    @db.VarChar(20)
+  email              String?                   @db.VarChar(255)
+  location           String                    @db.VarChar(160)
+  fullAddress        String?                   @db.VarChar(300)
+  logoUrl            String?                   @db.VarChar(500)
+  logoPublicId       String?                   @db.VarChar(255)
+  description        String                    @db.VarChar(2000)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings           RentalListing[]
+  availabilityBlocks RentalAvailabilityBlock[]
+
+  @@map("rental_providers")
+}
+
+model RentalCategory {
+  id            String              @id @default(cuid())
+  code          String              @unique @db.VarChar(30)
+  nameEn        String              @db.VarChar(100)
+  nameBn        String              @db.VarChar(100)
+  sortOrder     Int                 @default(0)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  subcategories RentalSubcategory[]
+  listings      RentalListing[]
+
+  @@map("rental_categories")
+}
+
+model RentalSubcategory {
+  id         String          @id @default(cuid())
+  categoryId String
+  code       String          @db.VarChar(40)
+  nameEn     String          @db.VarChar(120)
+  nameBn     String          @db.VarChar(120)
+  sortOrder  Int             @default(0)
+  isActive   Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  category   RentalCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  listings   RentalListing[]
+
+  @@unique([categoryId, code])
+  @@index([categoryId, sortOrder])
+  @@map("rental_subcategories")
+}
+
+model RentalListing {
+  id                 String                    @id @default(cuid())
+  providerId         String
+  categoryId         String
+  subcategoryId      String?
+  title              String                    @db.VarChar(160)
+  description        String                    @db.VarChar(3000)
+  pricePaisa         Int
+  priceUnit          PriceUnit
+  priceCustom        String?                   @db.VarChar(80)
+  location           String                    @db.VarChar(160)
+  division           String?                   @db.VarChar(30)
+  district           String?                   @db.VarChar(30)
+  availability       RentalAvailability        @default(AVAILABLE)
+  isActive           Boolean                   @default(true)
+  contactPhone       String?                   @db.VarChar(20)
+  contactEmail       String?                   @db.VarChar(255)
+  terms              String?                   @db.VarChar(2000)
+  vehicleType        String?                   @db.VarChar(60)
+  seatingCapacity    Int?
+  driverIncluded     Boolean?
+  roomCount          Int?
+  facilities         String?                   @db.VarChar(500)
+  parkingAvailable   Boolean?
+  availableHours     String?                   @db.VarChar(200)
+  brandModel         String?                   @db.VarChar(160)
+  quantity           Int?
+  condition          String?                   @db.VarChar(60)
+  accessories        String?                   @db.VarChar(500)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  provider           RentalProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category           RentalCategory            @relation(fields: [categoryId], references: [id])
+  subcategory        RentalSubcategory?        @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  photos             RentalListingPhoto[]
+  inquiries          Inquiry[]
+  reports            RentalListingReport[]
+  bookings           Booking[]
+  availabilityBlocks RentalAvailabilityBlock[]
+
+  @@index([providerId, updatedAt])
+  @@index([categoryId, availability, createdAt])
+  @@index([subcategoryId, availability])
+  @@index([isActive, createdAt])
+  @@map("rental_listings")
+}
+
+model RentalListingPhoto {
+  id        String        @id @default(cuid())
+  listingId String
+  url       String        @db.VarChar(500)
+  publicId  String        @db.VarChar(255)
+  position  Int           @default(0)
+  listing   RentalListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, position])
+  @@map("rental_listing_photos")
+}
+
+model Inquiry {
+  id        String        @id @default(cuid())
+  listingId String
+  userId    String
+  name      String        @db.VarChar(100)
+  email     String        @db.VarChar(255)
+  phone     String?       @db.VarChar(20)
+  message   String        @db.VarChar(2000)
+  status    InquiryStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  listing   RentalListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([userId, createdAt])
+  @@map("inquiries")
+}
+
+model RentalListingReport {
+  id         String        @id @default(cuid())
+  listingId  String
+  reporterId String
+  reason     String        @db.VarChar(120)
+  details    String?       @db.VarChar(1000)
+  status     ReportStatus  @default(OPEN)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  listing    RentalListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter   User          @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([status, createdAt])
+  @@map("rental_listing_reports")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+model Booking {
+  id             String                 @id @default(cuid())
+  listingId      String
+  renterId       String
+  status         BookingStatus          @default(PENDING)
+  startAt        DateTime
+  endAt          DateTime
+  priceUnit      PriceUnit
+  unitPricePaisa Int
+  priceCustom    String?                @db.VarChar(80)
+  totalPaisa     Int?
+  note           String?                @db.VarChar(1000)
+  decisionNote   String?                @db.VarChar(1000)
+  decidedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  listing        RentalListing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  renter         User                   @relation("BookingRenter", fields: [renterId], references: [id], onDelete: Cascade)
+  history        BookingStatusHistory[]
+
+  @@index([listingId, status, startAt, endAt])
+  @@index([renterId, createdAt])
+  @@index([status, endAt])
+  @@map("bookings")
+}
+
+model BookingStatusHistory {
+  id         String         @id @default(cuid())
+  bookingId  String
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  actorId    String?
+  note       String?        @db.VarChar(500)
+  createdAt  DateTime       @default(now())
+  booking    Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor      User?          @relation("BookingHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+  @@map("booking_status_history")
+}
+
+model RentalAvailabilityBlock {
+  id         String         @id @default(cuid())
+  listingId  String
+  providerId String
+  startAt    DateTime
+  endAt      DateTime
+  reason     String?        @db.VarChar(200)
+  createdAt  DateTime       @default(now())
+  listing    RentalListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  provider   RentalProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, startAt])
+  @@map("rental_availability_blocks")
+}
+
+/// Owner-controlled public contact, social links, rate card and per-field privacy for a Media World talent profile.
+model TalentProfileSettings {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  whatsapp     String?  @db.VarChar(20)
+  youtubeUrl   String?  @db.VarChar(300)
+  facebookUrl  String?  @db.VarChar(300)
+  instagramUrl String?  @db.VarChar(300)
+  tiktokUrl    String?  @db.VarChar(300)
+  websiteUrl   String?  @db.VarChar(300)
+  ratePerDay   Int?
+  ratePerWeek  Int?
+  ratePerMonth Int?
+  currency     String   @default("BDT") @db.VarChar(3)
+  showPhone    Boolean  @default(false)
+  showEmail    Boolean  @default(false)
+  showAddress  Boolean  @default(false)
+  showWhatsapp Boolean  @default(false)
+  showRates    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("talent_profile_settings")
+}
+
+/// A portfolio photo (Cloudinary) or external video link shown on the public talent profile.
+model TalentShowcaseItem {
+  id        String       @id @default(cuid())
+  userId    String
+  kind      ShowcaseKind
+  url       String       @db.VarChar(500)
+  publicId  String?      @db.VarChar(255)
+  title     String?      @db.VarChar(120)
+  position  Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, position])
+  @@map("talent_showcase_items")
+}
+
+/// One-way follow from a signed-in member to a Media World talent profile.
+model TalentFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("TalentFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("TalentFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("talent_follows")
+}
